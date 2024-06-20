@@ -1,51 +1,93 @@
-$(document).ready(function() {
+$(document).ready(function () {
     let items = [];
-
-    // Add item
-    $('#item-form').on('submit', function(event) {
-        event.preventDefault();
-        const name = $('#item-name').val();
-        const description = $('#item-description').val();
-        items.push({ name, description });
-        $('#item-name').val('');
-        $('#item-description').val('');
-        renderTable();
+    let filteredItems = [];
+	// Dark mode toggle
+    $('#toggle-dark-mode').click(function () {
+        $('body').toggleClass('dark-mode');
     });
-	
-    // Render table
-    function renderTable() {
+	// Add item
+    $('#add-item-form').submit(function (e) {
+        e.preventDefault();
+
+        const itemName = $('#item-name').val().trim();
+        const itemDescription = $('#item-description').val().trim();
+
+        if (itemName && itemDescription) {
+            const newItem = {
+                name: itemName,
+                description: itemDescription
+            };
+            items.push(newItem);
+            filteredItems = items;
+            renderTable(filteredItems);
+            $('#item-name').val('');
+            $('#item-description').val('');
+        }
+    });
+	// Live Search
+    $('#search').on('input', function () {
+        const query = $(this).val().toLowerCase();
+        filteredItems = items.filter(item => 
+            item.name.toLowerCase().includes(query) || item.description.toLowerCase().includes(query)
+        );
+        renderTable(filteredItems);
+    });
+	// Render table
+    function renderTable(itemsToRender) {
         const tbody = $('#items-table tbody');
         tbody.empty();
-        items.forEach((item, index) => {
-            const row = `<tr>
-                <td>${item.name}</td>
-                <td>${item.description}</td>
-                <td><button class="btn btn-danger delete-btn" data-index="${index}">Delete</button></td>
-            </tr>`;
+
+        itemsToRender.forEach((item, index) => {
+            const row = $('<tr>').append(
+                $('<td>').attr('contenteditable', 'true').text(item.name).on('blur', function () {
+                    item.name = $(this).text();
+                }),
+                $('<td>').attr('contenteditable', 'true').text(item.description).on('blur', function () {
+                    item.description = $(this).text();
+                }),
+                $('<td>').append(
+					// Delete Item
+                    $('<button>').addClass('btn btn-danger').text('Delete').click(function () {
+                        items.splice(items.indexOf(item), 1);  // Correctly remove item from the main items array
+                        filteredItems = items.filter(filteredItem => 
+                            filteredItem.name.toLowerCase().includes($('#search').val().toLowerCase()) ||
+                            filteredItem.description.toLowerCase().includes($('#search').val().toLowerCase())
+                        );
+                        renderTable(filteredItems);
+                    })
+                )
+            );
             tbody.append(row);
         });
     }
 
-    // Delete item
-    $('#items-table').on('click', '.delete-btn', function() {
-        const index = $(this).data('index');
-        items.splice(index, 1);
-        renderTable();
-    });
-
     // Sort items
-    $('.sort-btn').on('click', function() {
-        const sortField = $(this).data('sort');
-        items.sort((a, b) => a[sortField].localeCompare(b[sortField]));
-        renderTable();
-    });
+    $('th').click(function () {
+        const column = $(this).index();
+        const order = $(this).hasClass('asc') ? 'desc' : 'asc';
 
-    // Dark mode toggle
-    $('#toggle-dark-mode').on('click', function() {
-        $('body').toggleClass('dark-mode');
-    });
+        $(this).siblings().removeClass('asc desc');
+        $(this).removeClass('asc desc').addClass(order);
 
-    // Contact form submission
+        items.sort((a, b) => {
+            let valueA = Object.values(a)[column];
+            let valueB = Object.values(b)[column];
+            
+            if (order === 'asc') {
+                return valueA > valueB ? 1 : -1;
+            } else {
+                return valueA < valueB ? 1 : -1;
+            }
+        });
+
+        filteredItems = items.filter(item => 
+            item.name.toLowerCase().includes($('#search').val().toLowerCase()) ||
+            item.description.toLowerCase().includes($('#search').val().toLowerCase())
+        );
+        renderTable(filteredItems);
+    });
+	
+	// Contact form submission
     $('#contact-form').on('submit', function(event) {
         event.preventDefault();
         const username = $('#username').val();
